@@ -1,0 +1,20 @@
+{{ domain }} {
+    etcd {
+        path /skydns
+        endpoint http://{{ etcd_server }}:{{ etcd_port }}
+        fallthrough
+    }
+    hosts {
+        fallthrough
+    }
+    cache
+    errors
+}
+
+. {
+    hosts {
+        fallthrough
+    }
+    forward . /etc/resolv.conf
+    cache
+}

@@ -1,0 +1,10 @@
+[Unit]
+Description=CoreDNS daemon
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/coredns -conf /etc/coredns/Corefile
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
