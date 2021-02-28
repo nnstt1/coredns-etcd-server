@@ -6,6 +6,7 @@ ansible_user=
 ansible_become_user=root
 
 domain=example.com
-coredns_version=1.8.1
+coredns_version=1.8.3
+etcd_version=v3.4.15
 etcd_server=localhost
 etcd_port=2379

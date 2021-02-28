@@ -1,0 +1,80 @@
+---
+- name: Make sure pre-compiled CoreDNS binary file
+  stat:
+    path: /usr/local/bin/coredns
+  register: coredns_result
+
+- name: Make sure installed CoreDNS version
+  command: /usr/local/bin/coredns --version
+  changed_when: false
+  when: coredns_result.stat.exists
+  register: coredns_version_result
+
+- name: debug coredns_version_result
+  debug:
+    var: coredns_version_result
+  when: coredns_version_result is defined
+
+- name: Download file with checksum url (sha256)
+  get_url:
+    url: https://github.com/coredns/coredns/releases/download/v{{ coredns_version }}/coredns_{{ coredns_version }}_linux_amd64.tgz
+    dest: /tmp/coredns_{{ coredns_version }}_linux_amd64.tgz
+    checksum: sha256:https://github.com/coredns/coredns/releases/download/v{{ coredns_version }}/coredns_{{ coredns_version }}_linux_amd64.tgz.sha256
+  when: not coredns_result.stat.exists or coredns_version_result.stdout_lines[0] != "CoreDNS-" + coredns_version
+  register: download_result
+
+- name: debug download_result
+  debug:
+    var: download_result
+
+- name: Unarchive file
+  unarchive:
+    src: /tmp/coredns_{{ coredns_version }}_linux_amd64.tgz
+    dest: /usr/local/bin
+    remote_src: yes
+  when: download_result.changed and download_result.state == "file"
+  notify: Restart coredns service
+
+- name: Delete archive file
+  file:
+    path: /tmp/coredns_{{ coredns_version }}_linux_amd64.tgz
+    state: absent
+
+- name: Create a directory if it does not exist
+  file:
+    path: /etc/coredns
+    state: directory
+    mode: '0755'
+
+- name: Template a file to /etc/coredns/Corefile
+  template:
+    src: Corefile.j2
+    dest: /etc/coredns/Corefile
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart coredns service
+    
+- name: Copy file with owner and permissions
+  copy:
+    src: coredns.service
+    dest: /etc/systemd/system/coredns.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart coredns service
+
+- name: enable service coredns
+  systemd:
+    name: coredns
+    enabled: yes
+    state: started
+
+- name: debug CoreDNS version
+  command: /usr/local/bin/coredns --version
+  changed_when: false
+  register: coredns_version_result
+
+- name: debug coredns_version_result
+  debug:
+    var: coredns_version_result

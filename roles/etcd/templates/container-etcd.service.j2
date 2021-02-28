@@ -1,0 +1,5 @@
+{% for line in unit_file_contents.stdout_lines %}
+{% if loop.index > 4 %}
+{{ line }}
+{% endif %}
+{% endfor %}

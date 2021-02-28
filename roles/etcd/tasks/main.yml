@@ -1,0 +1,69 @@
+---
+- name: Make sure etcd data directory
+  file:
+    path: /var/lib/etcd
+    state: directory
+
+- name: Gather facts on etcd container
+  containers.podman.podman_container_info:
+    name: etcd
+  register: etcd_container_info
+
+- name: Debug etcd container version
+  debug:
+    var: etcd_container_info.containers[0].ImageName.split(":")[1]
+  when: etcd_container_info.stderr == ""
+
+- name: Pull etcd container image
+  podman_image:
+    name: gcr.io/etcd-development/etcd
+    tag: "{{ etcd_version }}"
+
+- name: Start etcd container when container is not started or is not equal specific version
+  containers.podman.podman_container:
+    name: etcd
+    image: gcr.io/etcd-development/etcd:{{ etcd_version }}
+    ports:
+      - 2379:2379
+      - 2380:2380
+    mount: type=bind,source=/var/lib/etcd,destination=/etcd-data
+    command: >
+      /usr/local/bin/etcd
+      --name s1
+      --data-dir /etcd-data
+      --listen-client-urls http://0.0.0.0:2379
+      --advertise-client-urls http://0.0.0.0:2379
+      --listen-peer-urls http://0.0.0.0:2380
+      --initial-advertise-peer-urls http://0.0.0.0:2380
+      --initial-cluster s1=http://0.0.0.0:2380
+      --initial-cluster-token tkn
+      --initial-cluster-state new
+      --log-level info
+      --logger zap
+      --log-outputs stderr
+    state: started
+  when: etcd_container_info.stderr == "" and etcd_container_info.containers[0].ImageName.split(":")[1] != etcd_version
+
+- name: Generate systemd unit file via podman generate command
+  command: podman generate systemd --restart-policy always --name etcd
+  changed_when: false
+  register: unit_file_contents
+
+- name: Debug unit_file_contents variable
+  debug:
+    var: unit_file_contents.stdout_lines
+
+- name: Template container-etcd.service.j2 to /etc/systemd/system/container-etcd.service
+  template:
+    src: container-etcd.service.j2
+    dest: /etc/systemd/system/container-etcd.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart container-etcd service
+
+- name: Enable service etcd
+  systemd:
+    name: container-etcd
+    enabled: yes
+    state: started

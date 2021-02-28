@@ -1,7 +1,16 @@
 # coredns-etcd-server
 
 CoreDNS と etcd で DNS サーバを構築する Playbook です。
-（etcd はまだ構築できません）
+
+CoreDNS は公式バイナリ、etcd は公式コンテナを使った systemd によるサービス化をしています。
+
+## 事前準備
+
+Playbook 内で利用する Collections を事前にインストールしてください。
+
+```bash
+ansible-galaxy collection install containers.podman
+```
 
 ## 使い方
 
@@ -17,5 +26,6 @@ ansible-playbook -i inventory coredns-etcd-server.yml -K
 
 - domain
 - coredns_version
+- etcd_version
 - etcd_server
 - etcd_port
